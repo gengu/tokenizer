@@ -133,6 +133,7 @@ const (
 	P50kBase   Encoding = "p50k_base"
 	P50kEdit   Encoding = "p50k_edit"
 	Cl100kBase Encoding = "cl100k_base"
+	STARCODER  Encoding = "starcoder"
 )
 
 // Get returns a new instance of a Codec implementation based on the specified
@@ -149,6 +150,8 @@ func Get(encoding Encoding) (Codec, error) {
 		return codec.NewP50kBase(), nil
 	case P50kEdit:
 		return codec.NewP50kEdit(), nil
+	case STARCODER:
+		return codec.NewStarCoder(), nil
 	default:
 		return nil, ErrEncodingNotSupported
 	}

@@ -3,9 +3,11 @@ package main
 import (
 	"bufio"
 	"encoding/base64"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -18,9 +20,18 @@ const (
 )
 
 type config struct {
-	url      string
-	mapName  string
-	filename string
+	url       string
+	mapName   string
+	filename  string
+	localpath string
+}
+
+type Tokenizer struct {
+	Model Model `json:"model"`
+}
+
+type Model struct {
+	Vocab map[string]int64 `json:"vocab"`
 }
 
 func main() {
@@ -41,13 +52,43 @@ func main() {
 	defer file.Close()
 
 	generatePreable(file, *encoding)
-	genVocabulary(file, cfg.mapName, cfg.url)
+	// 如果是从本地加载
+	if cfg.localpath != "" {
+		// 读本地文件，只拿里面的tokens
+		vocab := readVocabularyFromFile(cfg.localpath)
+		genVocabularyFromFile(file, cfg.mapName, vocab)
+	} else {
+		genVocabulary(file, cfg.mapName, cfg.url)
+	}
 }
 
 func generatePreable(w io.Writer, encoding string) {
 	fmt.Fprintf(w, "package %s\n", packageName)
 	fmt.Fprintf(w, "//go:generate go run ../internal/cmd/vocab.go -encoding %s\n", encoding)
 	fmt.Fprintf(w, "// THIS FILE WAS AUTOMATICALLY GENERATED. DO NOT MODIFY\n")
+}
+
+// readVocabularyFromFile read file to tokenizer map
+func readVocabularyFromFile(filename string) map[string]int64 {
+	fileContent, err := ioutil.ReadFile(filename)
+	if err != nil {
+		log.Fatalf("error reading file: %v", err)
+	}
+	var tokenizer Tokenizer
+	err = json.Unmarshal(fileContent, &tokenizer)
+	if err != nil {
+		log.Fatalf("error unmarshalling file: %v", err)
+	}
+	return tokenizer.Model.Vocab
+}
+
+// genVocabularyFromFile generate tokenizer map
+func genVocabularyFromFile(w io.Writer, mapName string, m map[string]int64) {
+	fmt.Fprintf(w, "var %s vocab = vocab{\n", mapName)
+	for k, v := range m {
+		fmt.Fprintf(w, "    %s:%s,\n", strconv.Quote(k), strconv.Quote(strconv.FormatInt(v, 10)))
+	}
+	fmt.Fprintf(w, "}\n\n")
 }
 
 func genVocabulary(w io.Writer, mapName string, uri string) {
@@ -98,6 +139,12 @@ func getConfig(encoding string) config {
 			mapName:  "p50kBaseVocab",
 			url:      "https://openaipublic.blob.core.windows.net/encodings/p50k_base.tiktoken",
 			filename: "p50k_base_vocab.go",
+		}
+	case "starcoder":
+		return config{
+			mapName:   "starcoderVocab",
+			localpath: "../internal/resources/starcoder/tokenizer.json",
+			filename:  "starcoder_base_vocab.go",
 		}
 	default:
 		log.Fatal("config not found")

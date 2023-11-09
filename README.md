@@ -48,6 +48,13 @@ Usage of tokenizer:
 > tokenizer -encode supercalifragilistic
 ```
 
+## generate vocab from local file
+
+```sh
+cd internal
+go run ../internal/cmd/vocab.go -encoding starcoder
+```
+
 ## Todo
 
 - ✅ port code
@@ -55,6 +62,7 @@ Usage of tokenizer:
 - ✅ r50k_base encoding
 - ✅ p50k_base encoding
 - ✅ p50k_edit encoding
+- ✅ starcoder encoding
 - ✅ tests
 - ❌ handle special tokens
 - ❌ gpt-2 model
